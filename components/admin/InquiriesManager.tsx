@@ -7,16 +7,27 @@ import type { Inquiry } from "@/lib/db";
 export default function InquiriesManager() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     try {
       const res = await fetch("/api/inquiries");
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          (data && typeof data.error === "string" && data.error) ||
+            "Could not load inquiries (" + res.status + ")."
+        );
+      }
       setInquiries(Array.isArray(data) ? data : []);
-    } catch {
+    } catch (err) {
       setInquiries([]);
+      setLoadError(
+        err instanceof Error ? err.message : "Could not load inquiries."
+      );
     } finally {
       setLoading(false);
     }
@@ -54,6 +65,20 @@ export default function InquiriesManager() {
 
       {loading ? (
         <p className="text-sm text-[#8E8E93]">Loading…</p>
+      ) : loadError ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-4 border border-red-400/30 bg-red-400/5 px-4 py-3 text-sm text-red-400"
+        >
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => load()}
+            className="border border-red-400/40 px-3 py-1 text-[10px] tracking-[0.2em] uppercase transition hover:bg-red-400/10"
+          >
+            Retry
+          </button>
+        </div>
       ) : inquiries.length === 0 ? (
         <p className="text-sm text-[#8E8E93]">No inquiries yet.</p>
       ) : (

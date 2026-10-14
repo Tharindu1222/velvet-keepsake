@@ -34,6 +34,7 @@ function formatLKR(value: number) {
 export default function PackagesManager() {
   const [packages, setPackages] = useState<PackageRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [showForm, setShowForm] = useState(false);
@@ -43,10 +44,22 @@ export default function PackagesManager() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     try {
       const res = await fetch("/api/packages");
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          (data && typeof data.error === "string" && data.error) ||
+            "Could not load packages (" + res.status + ")."
+        );
+      }
       setPackages(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setPackages([]);
+      setLoadError(
+        err instanceof Error ? err.message : "Could not load packages."
+      );
     } finally {
       setLoading(false);
     }
@@ -317,6 +330,20 @@ export default function PackagesManager() {
 
       {loading ? (
         <p className="text-sm text-[#8E8E93]">Loading…</p>
+      ) : loadError ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-4 border border-red-400/30 bg-red-400/5 px-4 py-3 text-sm text-red-400"
+        >
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => load()}
+            className="border border-red-400/40 px-3 py-1 text-[10px] tracking-[0.2em] uppercase transition hover:bg-red-400/10"
+          >
+            Retry
+          </button>
+        </div>
       ) : packages.length === 0 ? (
         <p className="text-sm text-[#8E8E93]">No packages yet.</p>
       ) : (

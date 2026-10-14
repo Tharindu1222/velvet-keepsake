@@ -73,10 +73,15 @@ export default function AdminLoginPage() {
               name="password"
               type="password"
               required
+              minLength={8}
               className="w-full border-b border-white/15 bg-transparent py-3 text-[#F5F5F7] outline-none focus:border-[#E5A93C]"
             />
           </label>
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-red-400">
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading}

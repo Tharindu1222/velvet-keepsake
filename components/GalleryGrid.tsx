@@ -17,71 +17,30 @@ const FILTERS: Array<"All" | PhotoCategory> = [
   "Details",
 ];
 
-const PLACEHOLDERS: Photo[] = [
-  {
-    id: 1,
-    url: "https://images.unsplash.com/photo-1519741497674-611481863552?w=1200&q=80",
-    public_id: null,
-    category: "Ceremony",
-    title: "Aisle light",
-    alt_text: "Bride walking down the aisle",
-    created_at: new Date(),
-  },
-  {
-    id: 2,
-    url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=1200&q=80",
-    public_id: null,
-    category: "Portraits",
-    title: "Golden hour",
-    alt_text: "Couple portrait at sunset",
-    created_at: new Date(),
-  },
-  {
-    id: 3,
-    url: "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=1200&q=80",
-    public_id: null,
-    category: "Candid",
-    title: "Quiet laugh",
-    alt_text: "Candid wedding moment",
-    created_at: new Date(),
-  },
-  {
-    id: 4,
-    url: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=1200&q=80",
-    public_id: null,
-    category: "Details",
-    title: "Silk & stone",
-    alt_text: "Wedding ring detail",
-    created_at: new Date(),
-  },
-  {
-    id: 5,
-    url: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?w=1200&q=80",
-    public_id: null,
-    category: "Reception",
-    title: "First dance",
-    alt_text: "Couple dancing at reception",
-    created_at: new Date(),
-  },
-  {
-    id: 6,
-    url: "https://images.unsplash.com/photo-1511285560929-80b4565783ab?w=1200&q=80",
-    public_id: null,
-    category: "Destination",
-    title: "Coastal vows",
-    alt_text: "Destination wedding by the sea",
-    created_at: new Date(),
-  },
-];
-
 export default function GalleryGrid({ photos }: { photos: Photo[] }) {
   const [filter, setFilter] = useState<"All" | PhotoCategory>("All");
-  const source = photos.length > 0 ? photos : PLACEHOLDERS;
+  const source = photos;
 
   const filtered = useMemo(() => {
     if (filter === "All") return source;
     return source.filter((p) => p.category === filter);
   }, [filter, source]);
+
+  if (photos.length === 0) {
+    return (
+      <div className="border border-white/10 bg-[#141414] px-6 py-20 text-center">
+        <p className="text-[10px] tracking-[0.25em] uppercase text-[#E5A93C]">
+          Gallery
+        </p>
+        <h3 className="mt-3 font-display text-2xl font-light text-[#F5F5F7]">
+          Gallery coming soon
+        </h3>
+        <p className="mt-3 text-sm text-[#8E8E93]">
+          We&apos;re curating our latest work. Please check back shortly.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -91,6 +50,7 @@ export default function GalleryGrid({ photos }: { photos: Photo[] }) {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
             className={`border px-4 py-2 text-[10px] tracking-[0.2em] uppercase transition ${
               filter === f
                 ? "border-[#E5A93C] text-[#E5A93C]"

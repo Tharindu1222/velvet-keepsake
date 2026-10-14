@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { getPool, type SpotlightRow } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { handleRouteError, jsonError } from "@/lib/api";
+import { insertOrdered } from "@/lib/crud";
+import { imageUrlField, readJsonBody, sortOrderField } from "@/lib/schemas";
 import { z } from "zod";
 
 const schema = z.object({
-  couple: z.string().min(1),
-  type: z.string().min(1),
-  location: z.string().min(1),
-  image: z.string().min(1),
-  sort_order: z.number().int().optional(),
+  couple: z.string().trim().min(1).max(255),
+  type: z.string().trim().min(1).max(255),
+  location: z.string().trim().min(1).max(255),
+  image: imageUrlField,
+  sort_order: sortOrderField,
 });
 
 export async function GET() {
@@ -19,31 +22,20 @@ export async function GET() {
     );
     return NextResponse.json(rows as SpotlightRow[]);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json([], { status: 200 });
+    return handleRouteError(err, "Could not load spotlight items");
   }
 }
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return jsonError("Unauthorized", 401);
 
   try {
-    const body = schema.parse(await request.json());
-    const pool = getPool();
-    const [countRows] = await pool.query("SELECT COUNT(*) AS c FROM spotlight");
-    const count = (countRows as { c: number }[])[0].c;
-
-    const [result] = await pool.query(
-      "INSERT INTO spotlight (couple, type, location, image, sort_order) VALUES (:couple, :type, :location, :image, :sort_order)",
-      { ...body, sort_order: body.sort_order ?? count }
-    );
-    const insert = result as { insertId: number };
-    return NextResponse.json({ id: insert.insertId, ...body });
+    const body = schema.parse(await readJsonBody(request));
+    const { sort_order, ...fields } = body;
+    const id = await insertOrdered("spotlight", fields, sort_order);
+    return NextResponse.json({ id, ...body }, { status: 201 });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Could not save spotlight item" }, { status: 400 });
+    return handleRouteError(err, "Could not save spotlight item");
   }
 }

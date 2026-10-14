@@ -7,12 +7,21 @@ declare global {
 
 export function getPool() {
   if (!global.mysqlPool) {
+    const isProd = process.env.NODE_ENV === "production";
+    const host = process.env.MYSQL_HOST;
+    const user = process.env.MYSQL_USER;
+    const database = process.env.MYSQL_DATABASE;
+    if (isProd && (!host || !user || !database)) {
+      throw new Error(
+        "MYSQL_HOST, MYSQL_USER, and MYSQL_DATABASE are required in production"
+      );
+    }
     global.mysqlPool = mysql.createPool({
-      host: process.env.MYSQL_HOST || "127.0.0.1",
+      host: host || "127.0.0.1",
       port: Number(process.env.MYSQL_PORT || 3306),
-      user: process.env.MYSQL_USER || "root",
+      user: user || "root",
       password: process.env.MYSQL_PASSWORD || "",
-      database: process.env.MYSQL_DATABASE || "velvet_keepsake",
+      database: database || "velvet_keepsake",
       waitForConnections: true,
       connectionLimit: 10,
       namedPlaceholders: true,

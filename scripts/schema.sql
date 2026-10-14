@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS photos (
   title VARCHAR(255) NULL,
   alt_text VARCHAR(512) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_category (category),
+  UNIQUE KEY uq_photos_public_id (public_id),
+  INDEX idx_category_created_at (category, created_at),
   INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB;
 
@@ -29,7 +30,8 @@ CREATE TABLE IF NOT EXISTS inquiries (
   email VARCHAR(255) NOT NULL,
   wedding_date DATE NULL,
   message TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_inquiries_created_at (created_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS hero_slides (

@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/admin/locations", label: "Popular Locations" },
   { href: "/admin/services", label: "What We Offer" },
   { href: "/admin/spotlight", label: "Our Spotlight" },
+  { href: "/admin/photos", label: "Gallery Photos" },
   { href: "/admin/packages", label: "Packages" },
 ];
 

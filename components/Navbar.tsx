@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -33,6 +33,8 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -41,18 +43,50 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    setOpen(false);
+    setDropdownOpen(null);
+    setHovered(null);
+  }, [pathname]);
+
+  // Esc closes the mobile menu and any open dropdown
+  useEffect(() => {
+    if (!open && !dropdownOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const wasMobileOpen = open;
+      setOpen(false);
+      setDropdownOpen(null);
+      setHovered(null);
+      if (wasMobileOpen) menuButtonRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, dropdownOpen]);
+
+  // Click/tap outside closes the dropdown
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!(e.target as Element | null)?.closest("[data-nav-item]")) {
+        setDropdownOpen(null);
+      }
+    };
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, [dropdownOpen]);
 
   useGSAP(() => {
     if (!open) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     gsap.fromTo(
       ".mobile-nav-link",
-      { opacity: 0, y: 16 },
+      { opacity: reduce ? 1 : 0, y: reduce ? 0 : 16 },
       {
         opacity: 1,
         y: 0,
-        duration: 0.45,
-        stagger: 0.06,
+        duration: reduce ? 0 : 0.45,
+        stagger: reduce ? 0 : 0.06,
         ease: "power3.out",
       }
     );
@@ -89,27 +123,56 @@ export default function Navbar() {
         >
           {links.map((link) => {
             const active = pathname === link.href;
+            const dropdownShown =
+              !!link.children &&
+              (hovered === link.href || dropdownOpen === link.href);
             return (
               <li
                 key={link.href}
+                data-nav-item
                 className="relative px-4 py-2"
                 onMouseEnter={() => setHovered(link.href)}
+                onBlur={(e) => {
+                  if (
+                    link.children &&
+                    !e.currentTarget.contains(e.relatedTarget as Node | null)
+                  ) {
+                    setDropdownOpen((cur) => (cur === link.href ? null : cur));
+                  }
+                }}
               >
+                <div className="relative z-10 flex items-center gap-1">
                 <Link
                   href={link.href}
-                  className={`relative z-10 flex items-center gap-1 text-[11px] tracking-[0.22em] uppercase transition ${
+                  aria-current={active ? "page" : undefined}
+                  className={`text-[11px] tracking-[0.22em] uppercase transition ${
                     active ? "text-white" : "text-white/60 hover:text-white"
                   }`}
                 >
                   {link.label}
-                  {link.children && (
+                </Link>
+                {link.children && (
+                  <button
+                    type="button"
+                    aria-label={`${link.label} menu`}
+                    aria-haspopup="true"
+                    aria-expanded={dropdownShown}
+                    aria-controls={`nav-dropdown-${link.label.toLowerCase()}`}
+                    onClick={() =>
+                      setDropdownOpen((cur) =>
+                        cur === link.href ? null : link.href
+                      )
+                    }
+                    className="flex h-5 w-5 items-center justify-center text-white/60 transition hover:text-white focus-visible:outline-2 focus-visible:outline-[#E5A93C]"
+                  >
                     <svg
                       width="8"
                       height="8"
                       viewBox="0 0 10 6"
                       fill="none"
+                      aria-hidden="true"
                       className={`transition-transform duration-300 ${
-                        hovered === link.href ? "rotate-180" : ""
+                        dropdownShown ? "rotate-180" : ""
                       }`}
                     >
                       <path
@@ -120,8 +183,9 @@ export default function Navbar() {
                         strokeLinejoin="round"
                       />
                     </svg>
-                  )}
-                </Link>
+                  </button>
+                )}
+                </div>
                 {hovered === link.href && (
                   <motion.span
                     layoutId="nav-hover"
@@ -138,8 +202,9 @@ export default function Navbar() {
                 )}
                 {link.children && (
                   <AnimatePresence>
-                    {hovered === link.href && (
+                    {dropdownShown && (
                       <motion.div
+                        id={`nav-dropdown-${link.label.toLowerCase()}`}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
@@ -170,8 +235,11 @@ export default function Navbar() {
         </ul>
 
         <button
+          ref={menuButtonRef}
           type="button"
-          aria-label="Menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
+          aria-controls="mobile-nav"
           className="relative z-10 text-white lg:hidden"
           onClick={() => setOpen((v) => !v)}
         >
@@ -194,7 +262,9 @@ export default function Navbar() {
       </nav>
 
       {open && (
-        <div className="border-t border-white/[0.06] bg-[#0A0A0A]/98 px-6 py-8 backdrop-blur-xl lg:hidden">
+        <div
+          id="mobile-nav"
+          className="border-t border-white/[0.06] bg-[#0A0A0A]/98 px-6 py-8 backdrop-blur-xl lg:hidden">
           <ul className="flex flex-col gap-6">
             {links.map((link) => (
               <li key={link.href} className="mobile-nav-link">

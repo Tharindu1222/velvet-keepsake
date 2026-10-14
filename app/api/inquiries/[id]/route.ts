@@ -1,23 +1,22 @@
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { handleRouteError, jsonError, parsePositiveIntId } from "@/lib/api";
+import { deleteById } from "@/lib/crud";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function DELETE(_request: Request, { params }: Params) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return jsonError("Unauthorized", 401);
 
-  const { id } = await params;
+  const id = parsePositiveIntId((await params).id);
+  if (id === null) return jsonError("Invalid id", 400);
 
   try {
-    const pool = getPool();
-    await pool.query("DELETE FROM inquiries WHERE id = :id", { id });
+    const affected = await deleteById("inquiries", id);
+    if (affected === 0) return jsonError("Not found", 404);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Could not delete inquiry" }, { status: 400 });
+    return handleRouteError(err, "Could not delete inquiry");
   }
 }

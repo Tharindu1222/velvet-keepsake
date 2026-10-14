@@ -1,19 +1,24 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getPool, type LocationRow } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { handleRouteError, jsonError } from "@/lib/api";
+import { insertOrdered } from "@/lib/crud";
+import { imageUrlField, readJsonBody, sortOrderField } from "@/lib/schemas";
 import { z } from "zod";
 
 const schema = z.object({
   slug: z
     .string()
     .min(1)
+    .max(255)
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug must be lowercase, hyphen-separated"),
-  title: z.string().min(1),
-  subtitle: z.string().min(1),
-  badge: z.string().min(1),
-  highlight: z.string().min(1),
-  image: z.string().min(1),
-  sort_order: z.number().int().optional(),
+  title: z.string().trim().min(1).max(255),
+  subtitle: z.string().trim().min(1).max(512),
+  badge: z.string().trim().min(1).max(255),
+  highlight: z.string().trim().min(1).max(255),
+  image: imageUrlField,
+  sort_order: sortOrderField,
 });
 
 export async function GET() {
@@ -24,32 +29,22 @@ export async function GET() {
     );
     return NextResponse.json(rows as LocationRow[]);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json([], { status: 200 });
+    return handleRouteError(err, "Could not load locations");
   }
 }
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return jsonError("Unauthorized", 401);
 
   try {
-    const body = schema.parse(await request.json());
-    const pool = getPool();
-    const [countRows] = await pool.query("SELECT COUNT(*) AS c FROM locations");
-    const count = (countRows as { c: number }[])[0].c;
-
-    const [result] = await pool.query(
-      `INSERT INTO locations (slug, title, subtitle, badge, highlight, image, sort_order)
-       VALUES (:slug, :title, :subtitle, :badge, :highlight, :image, :sort_order)`,
-      { ...body, sort_order: body.sort_order ?? count }
-    );
-    const insert = result as { insertId: number };
-    return NextResponse.json({ id: insert.insertId, ...body });
+    const body = schema.parse(await readJsonBody(request));
+    const { sort_order, ...fields } = body;
+    const id = await insertOrdered("locations", fields, sort_order);
+    revalidatePath("/locations");
+    revalidatePath(`/locations/${body.slug}`);
+    return NextResponse.json({ id, ...body }, { status: 201 });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Could not save location (slug may already exist)" }, { status: 400 });
+    return handleRouteError(err, "Could not save location");
   }
 }

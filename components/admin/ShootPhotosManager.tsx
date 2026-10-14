@@ -16,12 +16,23 @@ export default function ShootPhotosManager({ spotlightId, coverImage }: Props) {
   const [urlInput, setUrlInput] = useState("");
   const [status, setStatus] = useState("");
 
+  const [loadError, setLoadError] = useState("");
+
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     try {
       const res = await fetch(`/api/shoot-images?spotlight_id=${spotlightId}`);
+      if (!res.ok) {
+        setImages([]);
+        setLoadError("Could not load shoot photos.");
+        return;
+      }
       const data = await res.json();
       setImages(Array.isArray(data) ? data : []);
+    } catch {
+      setImages([]);
+      setLoadError("Could not load shoot photos.");
     } finally {
       setLoading(false);
     }
@@ -100,6 +111,22 @@ export default function ShootPhotosManager({ spotlightId, coverImage }: Props) {
         </p>
         {status && <p className="text-xs text-[#E5A93C]">{status}</p>}
       </div>
+
+      {loadError && (
+        <div
+          role="alert"
+          className="mb-4 flex flex-wrap items-center justify-between gap-2 border border-red-400/40 bg-red-400/10 px-3 py-2 text-sm text-red-300"
+        >
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={load}
+            className="text-[10px] tracking-[0.15em] uppercase text-red-200 underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="mb-4 flex flex-wrap gap-2">
         <input

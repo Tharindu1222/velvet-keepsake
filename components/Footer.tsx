@@ -159,7 +159,17 @@ export default function Footer() {
           <p>
             © {new Date().getFullYear()} {brand.name}. All rights reserved.
           </p>
-          <p className="text-[#8E8E93]/40">Crafted for timeless keepsakes</p>
+          <div className="flex items-center gap-5">
+            <Link
+              href="/privacy"
+              className="transition hover:text-[#E5A93C]"
+            >
+              Privacy Policy
+            </Link>
+            <span className="text-[#8E8E93]/40">
+              Crafted for timeless keepsakes
+            </span>
+          </div>
         </div>
       </div>
     </footer>

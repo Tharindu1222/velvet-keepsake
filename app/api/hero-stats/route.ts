@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { getPool, type HeroStat } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { handleRouteError, jsonError } from "@/lib/api";
+import { insertOrdered } from "@/lib/crud";
+import { readJsonBody, sortOrderField } from "@/lib/schemas";
 import { z } from "zod";
 
 const schema = z.object({
-  value: z.number().int(),
+  value: z.number().int().min(0).max(1_000_000_000),
   suffix: z.string().max(16).optional().default(""),
-  label: z.string().min(1),
-  sort_order: z.number().int().optional(),
+  label: z.string().trim().min(1).max(255),
+  sort_order: sortOrderField,
 });
 
 export async function GET() {
@@ -18,31 +21,20 @@ export async function GET() {
     );
     return NextResponse.json(rows as HeroStat[]);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json([], { status: 200 });
+    return handleRouteError(err, "Could not load hero stats");
   }
 }
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return jsonError("Unauthorized", 401);
 
   try {
-    const body = schema.parse(await request.json());
-    const pool = getPool();
-    const [countRows] = await pool.query("SELECT COUNT(*) AS c FROM hero_stats");
-    const count = (countRows as { c: number }[])[0].c;
-
-    const [result] = await pool.query(
-      "INSERT INTO hero_stats (value, suffix, label, sort_order) VALUES (:value, :suffix, :label, :sort_order)",
-      { ...body, sort_order: body.sort_order ?? count }
-    );
-    const insert = result as { insertId: number };
-    return NextResponse.json({ id: insert.insertId, ...body });
+    const body = schema.parse(await readJsonBody(request));
+    const { sort_order, ...fields } = body;
+    const id = await insertOrdered("hero_stats", fields, sort_order);
+    return NextResponse.json({ id, ...body }, { status: 201 });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Could not save hero stat" }, { status: 400 });
+    return handleRouteError(err, "Could not save hero stat");
   }
 }

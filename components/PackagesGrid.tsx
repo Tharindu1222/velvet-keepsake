@@ -64,7 +64,7 @@ export default function PackagesGrid({ packages }: Props) {
               </ul>
               <div className="mt-10">
                 <MagneticButton
-                  href="/contact"
+                  href={`/contact?package=${encodeURIComponent(pkg.name)}`}
                   variant={featured ? "gold" : "outline"}
                   className="w-full !px-6 !py-3"
                 >

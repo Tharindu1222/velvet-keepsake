@@ -24,6 +24,10 @@ export default function ScrollSetup() {
   useEffect(() => {
     ScrollTrigger.config({ ignoreMobileResize: true });
 
+    // Coarse pointer (touch) devices already have native momentum scrolling;
+    // normalizeScroll hijacks it and causes jank, so skip it there.
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
     if (normalized) return;
     normalized = true;
 

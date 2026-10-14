@@ -1,17 +1,28 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { uploadImageBuffer } from "@/lib/cloudinary";
+import { missingCloudinaryKeys } from "@/lib/env";
+import { jsonError, handleRouteError } from "@/lib/api";
+
+const MAX_BYTES = 8 * 1024 * 1024;
+const ALLOWED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+]);
 
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
-  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY) {
-    return NextResponse.json(
-      { error: "Cloudinary is not configured. Set CLOUDINARY_* in .env.local" },
-      { status: 500 }
+  const missing = missingCloudinaryKeys();
+  if (missing.length) {
+    return jsonError(
+      `Cloudinary is not configured. Missing: ${missing.join(", ")}`,
+      500
     );
   }
 
@@ -20,7 +31,15 @@ export async function POST(request: Request) {
     const file = formData.get("file");
 
     if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      return jsonError("No file provided", 400);
+    }
+
+    if (!ALLOWED_TYPES.has(file.type)) {
+      return jsonError("Only JPEG, PNG, WebP, or AVIF images are allowed", 400);
+    }
+
+    if (file.size <= 0 || file.size > MAX_BYTES) {
+      return jsonError("Image must be between 1 byte and 8MB", 400);
     }
 
     const bytes = await file.arrayBuffer();
@@ -34,7 +53,6 @@ export async function POST(request: Request) {
       height: result.height,
     });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return handleRouteError(err, "Upload failed");
   }
 }

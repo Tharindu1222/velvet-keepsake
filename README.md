@@ -1,13 +1,12 @@
 # Velvet Keepsake Weddings
 
-Luxury wedding photography site — premium black aesthetic, 3D hero, Framer Motion, Cloudinary media, and a MySQL-backed admin curator panel.
+Luxury wedding photography site — black aesthetic, Framer Motion / GSAP, Cloudinary media, and a MySQL-backed admin curator panel.
 
 ## Stack
 
 - **Next.js 16** (App Router) + TypeScript + Tailwind CSS v4
-- **Three.js** via `@react-three/fiber` + `@react-three/drei`
-- **Framer Motion** for scroll reveals
-- **MySQL** (`mysql2`) for photos, admins, inquiries
+- **Framer Motion** + **GSAP** for motion
+- **MySQL** (`mysql2`) for content, admins, inquiries
 - **Cloudinary** for image upload & CDN delivery
 - **JWT cookies** (`jose` + `bcryptjs`) for `/admin` auth
 
@@ -19,23 +18,7 @@ Luxury wedding photography site — premium black aesthetic, 3D hero, Framer Mot
 cp .env.example .env.local
 ```
 
-Fill in:
-
-```env
-MYSQL_HOST=127.0.0.1
-MYSQL_PORT=3306
-MYSQL_USER=root
-MYSQL_PASSWORD=your_mysql_password
-MYSQL_DATABASE=velvet_keepsake
-
-CLOUDINARY_CLOUD_NAME=xxxxx
-CLOUDINARY_API_KEY=xxxxx
-CLOUDINARY_API_SECRET=xxxxx
-
-JWT_SECRET=long-random-string
-ADMIN_EMAIL=admin@velvetkeepsake.com
-ADMIN_PASSWORD=VelvetAdmin2026!
-```
+Set all values in `.env.example`. `JWT_SECRET` is required (long random string). Do not use weak or documented sample passwords in production.
 
 ### 2. Apply MySQL schema
 
@@ -43,7 +26,7 @@ ADMIN_PASSWORD=VelvetAdmin2026!
 npm run db:setup
 ```
 
-Or manually:
+Or:
 
 ```bash
 mysql -u root -p < scripts/schema.sql
@@ -66,30 +49,23 @@ npm run dev
 | http://localhost:3000 | Public site |
 | http://localhost:3000/admin/login | Curator panel |
 
-First successful login with `ADMIN_EMAIL` / `ADMIN_PASSWORD` creates the admin row in MySQL.
+First login creates the admin row **only when the `admins` table is empty**, using `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
 ## Architecture
 
 ```
 app/
-  page.tsx                 # 3D hero home
-  gallery/                 # Filterable masonry
-  about/ packages/ contact/
-  admin/login|dashboard/   # Auth + Cloudinary uploader
-  api/
-    auth/login|logout
-    upload                 # → Cloudinary
-    photos|photos/create   # → MySQL
-    inquiries              # Contact form
+  page.tsx                 # Home (GSAP hero)
+  portfolio/               # Gallery + spotlight
+  about/ packages/ contact/ reserve/
+  privacy/                 # Privacy notice
+  admin/                   # Curator panel
+  api/                     # Route handlers
 lib/
-  db.ts                    # mysql2 pool
-  cloudinary.ts
-  auth.ts                  # JWT session cookies
+  db.ts, auth.ts, env.ts, api.ts, rate-limit.ts
+  cloudinary.ts, data.ts, content.ts
 components/
-  Hero3DCanvas.tsx
-  GalleryGrid.tsx
-  LuxuryFadeIn.tsx
+  HomeHero.tsx, GalleryGrid.tsx, admin/*
 scripts/
-  schema.sql
-  setup-db.js
+  schema.sql, setup-db.js, seed-content.js
 ```

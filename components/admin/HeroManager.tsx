@@ -19,17 +19,27 @@ export default function HeroManager() {
   const [slides, setSlides] = useState<SlideRow[]>([]);
   const [stats, setStats] = useState<StatRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
   const [status, setStatus] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     try {
       const [settingsRes, slidesRes, statsRes] = await Promise.all([
         fetch("/api/hero-settings"),
         fetch("/api/hero-slides"),
         fetch("/api/hero-stats"),
       ]);
+      const failed = [settingsRes, slidesRes, statsRes].find((r) => !r.ok);
+      if (failed) {
+        const body = await failed.json().catch(() => null);
+        throw new Error(
+          (body && typeof body.error === "string" && body.error) ||
+            "Could not load hero content (" + failed.status + ")."
+        );
+      }
       setSettings(await settingsRes.json());
       const slidesData: HeroSlide[] = await slidesRes.json();
       setSlides(
@@ -42,6 +52,10 @@ export default function HeroManager() {
         Array.isArray(statsData)
           ? statsData.map((s) => ({ id: s.id, value: s.value, suffix: s.suffix, label: s.label }))
           : []
+      );
+    } catch (err) {
+      setLoadError(
+        err instanceof Error ? err.message : "Could not load hero content."
       );
     } finally {
       setLoading(false);
@@ -146,6 +160,24 @@ export default function HeroManager() {
 
   if (loading) {
     return <p className="text-sm text-[#8E8E93]">Loading…</p>;
+  }
+
+  if (loadError) {
+    return (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center gap-4 border border-red-400/30 bg-red-400/5 px-4 py-3 text-sm text-red-400"
+      >
+        <span>{loadError}</span>
+        <button
+          type="button"
+          onClick={() => load()}
+          className="border border-red-400/40 px-3 py-1 text-[10px] tracking-[0.2em] uppercase transition hover:bg-red-400/10"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (

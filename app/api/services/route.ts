@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { getPool, type ServiceRow } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { handleRouteError, jsonError } from "@/lib/api";
+import { insertOrdered } from "@/lib/crud";
+import { imageUrlField, readJsonBody, sortOrderField } from "@/lib/schemas";
 import { z } from "zod";
 
 const schema = z.object({
-  title: z.string().min(1),
-  copy: z.string().min(1),
-  image: z.string().min(1),
-  sort_order: z.number().int().optional(),
+  title: z.string().trim().min(1).max(255),
+  copy: z.string().trim().min(1).max(5000),
+  image: imageUrlField,
+  sort_order: sortOrderField,
 });
 
 export async function GET() {
@@ -18,31 +21,20 @@ export async function GET() {
     );
     return NextResponse.json(rows as ServiceRow[]);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json([], { status: 200 });
+    return handleRouteError(err, "Could not load services");
   }
 }
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return jsonError("Unauthorized", 401);
 
   try {
-    const body = schema.parse(await request.json());
-    const pool = getPool();
-    const [countRows] = await pool.query("SELECT COUNT(*) AS c FROM services");
-    const count = (countRows as { c: number }[])[0].c;
-
-    const [result] = await pool.query(
-      "INSERT INTO services (title, copy, image, sort_order) VALUES (:title, :copy, :image, :sort_order)",
-      { ...body, sort_order: body.sort_order ?? count }
-    );
-    const insert = result as { insertId: number };
-    return NextResponse.json({ id: insert.insertId, ...body });
+    const body = schema.parse(await readJsonBody(request));
+    const { sort_order, ...fields } = body;
+    const id = await insertOrdered("services", fields, sort_order);
+    return NextResponse.json({ id, ...body }, { status: 201 });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Could not save service" }, { status: 400 });
+    return handleRouteError(err, "Could not save service");
   }
 }

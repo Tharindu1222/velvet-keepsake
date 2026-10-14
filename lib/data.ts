@@ -17,14 +17,14 @@ import {
   packages as staticPackages,
 } from "@/lib/content";
 
-const defaultHeroSettings: Record<string, string> = {
+export const defaultHeroSettings: Record<string, string> = {
   hero_kicker: "Fine Art · Weddings · Island-Wide",
   hero_heading_line1: "Sri Lanka's Finest",
   hero_heading_line2: "Wedding Photography,",
   hero_heading_prefix: "Beautifully Told in",
 };
 
-const defaultAboutSettings: Record<string, string> = {
+export const defaultAboutSettings: Record<string, string> = {
   about_hero_image:
     "https://images.unsplash.com/photo-1519741497674-611481863552?w=1800&q=80",
   about_intro_image:

@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { getPool, type HeroSlide } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { handleRouteError, jsonError } from "@/lib/api";
+import { insertOrdered } from "@/lib/crud";
+import { imageUrlField, readJsonBody, sortOrderField } from "@/lib/schemas";
 import { z } from "zod";
 
 const schema = z.object({
-  image: z.string().min(1),
-  place: z.string().min(1),
-  sort_order: z.number().int().optional(),
+  image: imageUrlField,
+  place: z.string().trim().min(1).max(255),
+  sort_order: sortOrderField,
 });
 
 export async function GET() {
@@ -17,31 +20,20 @@ export async function GET() {
     );
     return NextResponse.json(rows as HeroSlide[]);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json([], { status: 200 });
+    return handleRouteError(err, "Could not load hero slides");
   }
 }
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return jsonError("Unauthorized", 401);
 
   try {
-    const body = schema.parse(await request.json());
-    const pool = getPool();
-    const [countRows] = await pool.query("SELECT COUNT(*) AS c FROM hero_slides");
-    const count = (countRows as { c: number }[])[0].c;
-
-    const [result] = await pool.query(
-      "INSERT INTO hero_slides (image, place, sort_order) VALUES (:image, :place, :sort_order)",
-      { image: body.image, place: body.place, sort_order: body.sort_order ?? count }
-    );
-    const insert = result as { insertId: number };
-    return NextResponse.json({ id: insert.insertId, ...body });
+    const body = schema.parse(await readJsonBody(request));
+    const { sort_order, ...fields } = body;
+    const id = await insertOrdered("hero_slides", fields, sort_order);
+    return NextResponse.json({ id, ...body }, { status: 201 });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Could not save hero slide" }, { status: 400 });
+    return handleRouteError(err, "Could not save hero slide");
   }
 }

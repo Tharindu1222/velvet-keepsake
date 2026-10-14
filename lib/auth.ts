@@ -1,14 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { getJwtSecretBytes, isProduction } from "@/lib/env";
 
 const COOKIE_NAME = "vk_admin_session";
 
-function getSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error("JWT_SECRET is not set");
-  return new TextEncoder().encode(secret);
-}
+export type SessionPayload = { email: string; role: "admin" };
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 12);
@@ -23,13 +20,18 @@ export async function createSessionToken(email: string) {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(getSecret());
+    .sign(getJwtSecretBytes());
 }
 
-export async function verifySessionToken(token: string) {
+export async function verifySessionToken(
+  token: string
+): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getSecret());
-    return payload as { email: string; role: string };
+    const { payload } = await jwtVerify(token, getJwtSecretBytes());
+    const email = typeof payload.email === "string" ? payload.email : null;
+    const role = payload.role;
+    if (!email || role !== "admin") return null;
+    return { email, role: "admin" };
   } catch {
     return null;
   }
@@ -39,7 +41,7 @@ export async function setSessionCookie(token: string) {
   const jar = await cookies();
   jar.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isProduction(),
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,

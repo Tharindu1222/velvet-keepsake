@@ -1,47 +1,37 @@
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { getAboutSettings } from "@/lib/data";
+import { handleRouteError, jsonError } from "@/lib/api";
+import { readSettings, upsertSettings } from "@/lib/crud";
+import { defaultAboutSettings } from "@/lib/data";
+import { imageUrlField, readJsonBody } from "@/lib/schemas";
 import { z } from "zod";
 
+const ABOUT_KEYS = Object.keys(defaultAboutSettings);
+
 const schema = z.object({
-  about_hero_image: z.string().optional(),
-  about_intro_image: z.string().optional(),
-  about_services_image: z.string().optional(),
+  about_hero_image: imageUrlField.optional(),
+  about_intro_image: imageUrlField.optional(),
+  about_services_image: imageUrlField.optional(),
 });
 
 export async function GET() {
   try {
-    const settings = await getAboutSettings();
-    return NextResponse.json(settings);
+    const stored = await readSettings(ABOUT_KEYS);
+    return NextResponse.json({ ...defaultAboutSettings, ...stored });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({}, { status: 200 });
+    return handleRouteError(err, "Could not load about settings");
   }
 }
 
 export async function PUT(request: Request) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return jsonError("Unauthorized", 401);
 
   try {
-    const body = schema.parse(await request.json());
-    const pool = getPool();
-
-    for (const [key, value] of Object.entries(body)) {
-      if (value === undefined) continue;
-      await pool.query(
-        `INSERT INTO site_settings (setting_key, setting_value) VALUES (:key, :value)
-         ON DUPLICATE KEY UPDATE setting_value = :value`,
-        { key, value }
-      );
-    }
-
+    const body = schema.parse(await readJsonBody(request));
+    await upsertSettings(body);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Could not save settings" }, { status: 400 });
+    return handleRouteError(err, "Could not save settings");
   }
 }

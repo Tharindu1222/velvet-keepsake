@@ -11,6 +11,7 @@ export default function FAQAccordion() {
 
   function toggle(i: number) {
     const next = open === i ? null : i;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     panels.current.forEach((panel, idx) => {
       if (!panel) return;
@@ -18,14 +19,14 @@ export default function FAQAccordion() {
         gsap.to(panel, {
           height: "auto",
           opacity: 1,
-          duration: 0.45,
+          duration: reduce ? 0 : 0.45,
           ease: "power3.out",
         });
       } else {
         gsap.to(panel, {
           height: 0,
           opacity: 0,
-          duration: 0.35,
+          duration: reduce ? 0 : 0.35,
           ease: "power2.inOut",
         });
       }
@@ -57,14 +58,23 @@ export default function FAQAccordion() {
                 <button
                   type="button"
                   onClick={() => toggle(i)}
+                  id={`faq-trigger-${i}`}
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-panel-${i}`}
                   className="flex w-full items-start justify-between gap-6 py-6 text-left"
                 >
                   <span className="font-display text-xl text-[#F5F5F7] sm:text-2xl">
                     {item.q}
                   </span>
-                  <span className="mt-1 text-white/60">{isOpen ? "−" : "+"}</span>
+                  <span aria-hidden="true" className="mt-1 text-white/60">
+                    {isOpen ? "−" : "+"}
+                  </span>
                 </button>
                 <div
+                  id={`faq-panel-${i}`}
+                  role="region"
+                  aria-labelledby={`faq-trigger-${i}`}
+                  inert={!isOpen}
                   ref={(el) => {
                     panels.current[i] = el;
                   }}
